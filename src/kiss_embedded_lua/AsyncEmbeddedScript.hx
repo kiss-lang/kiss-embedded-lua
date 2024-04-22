@@ -37,14 +37,10 @@ class AsyncEmbeddedScript {
     public function run(cc:Continuation) {
         var code = sys.io.File.getContent(scriptFile);
 
-        // TODO this is janky and means no string support!
-        code = code.replace('__lua_lib_luautf8_Utf8 = _G.require("lua-utf8")', '');
-
         interp.run(code);
 
-        // var globals = interp.getGlobalVar("__kiss_embedded_lua_AsyncEmbeddedScript");
         interp.setGlobalVar("cc", cc);
-        interp.run("__kiss_embedded_lua_AsyncEmbeddedScript.instructions[0](cc)");
+        interp.run("__kiss_embedded_lua_AsyncEmbeddedScript.instructions[0](nil, false, cc)");
 
         // trace(globals);
         // globals.instructions[0](cc);
@@ -58,7 +54,7 @@ class AsyncEmbeddedScript {
             var args = config.args.copy();
 
             var luaScriptFile = luaOutputDir + "/" + scriptFile.withoutExtension().withExtension("lua");
-            var luaArgs = ["-lua", luaScriptFile, "--dce", "full"];
+            var luaArgs = ["-lua", luaScriptFile, "--dce", "full", "-D", "lua-vanilla"];
 
             var libsToRemove = ["hxnodejs", "hxcpp", "linc_lua", "hxvm-lua"];
 
