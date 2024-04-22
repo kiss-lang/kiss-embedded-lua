@@ -1,0 +1,3 @@
+# @install: lix --silent download "gh://github.com/kiss-lang/linc_lua#311947219d329903e742e4c8aaa484ae6de57024" into linc_lua/0.0.0/github/311947219d329903e742e4c8aaa484ae6de57024
+-cp ${HAXE_LIBCACHE}/linc_lua/0.0.0/github/311947219d329903e742e4c8aaa484ae6de57024/
+-D linc_lua=0.0.0

@@ -1,0 +1,7 @@
+-cp src
+-cpp bin
+-lib linc_lua
+-lib hxvm-lua
+-lib kiss
+--main test.LuaTestMain
+--cmd bin/LuaTestMain

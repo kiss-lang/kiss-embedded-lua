@@ -1,0 +1,19 @@
+{
+    "name": "kiss-embedded-lua",
+    "url": "https://github.com/kiss-lang/kiss-embedded-lua",
+    "license": "LGPL",
+    "tags": ["cross"],
+    "description": "",
+    "version": "0.0.1",
+    "releasenote": "It isn't safe to use this library yet.",
+    "contributors": ["NQNStudios"],
+    "classPath": "src",
+    "dependencies": {
+        "hscript": "",
+        "uuid": "",
+        "tink_macro": "",
+        "tink_json": "",
+        "tink_syntaxhub": "",
+        "haxe-strings": ""
+    }
+}
