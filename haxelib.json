@@ -14,6 +14,9 @@
         "tink_macro": "",
         "tink_json": "",
         "tink_syntaxhub": "",
-        "haxe-strings": ""
+        "haxe-strings": "",
+        "kiss": "",
+        "linc_lua": "",
+        "hxvm-lua": ""
     }
 }
