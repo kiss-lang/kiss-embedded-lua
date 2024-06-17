@@ -1,1 +1,3 @@
 (heyo)
+(macroCallHeyo)
+(self.heyoMethod)

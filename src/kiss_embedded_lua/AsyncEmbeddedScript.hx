@@ -22,13 +22,31 @@ using haxe.io.Path;
 using StringTools;
 #end
 
+import kiss.Prelude;
+
 typedef Continuation = Void->Void;
+
+#if lua
+class Globals {
+    public static var self:Dynamic;
+    public static var onFinish:Continuation;
+}
+#end
 
 class AsyncEmbeddedScript {
     #if lua
     public static var instructions = [];
     public static var printCurrentInstruction = true;
     public static var autoCC = true;
+    private static var instructionPointer = 0;
+    @:keep
+    private static function cc() {
+        if (instructionPointer >= instructions.length) {
+            Globals.onFinish();
+        } else {
+            instructions[instructionPointer++](Globals.self, false, cc);
+        }
+    }
     public function new() {}
     #end
     #if (!macro && !lua)
@@ -38,13 +56,17 @@ class AsyncEmbeddedScript {
     public function new() { __init(); }
     private function __init() {}
 
-    public function run(cc:Continuation) {
+    public function run(onFinish:Continuation) {
         var code = sys.io.File.getContent(scriptFile);
 
         interp.run(code);
 
-        interp.setGlobalVar("cc", cc);
-        interp.run("__kiss_embedded_lua_AsyncEmbeddedScript.instructions[0](nil, false, cc)");
+        interp.setGlobalVar("__kiss_embedded_lua_Globals", {
+            self: this,
+            onFinish: onFinish,
+        });
+
+        interp.run("__kiss_embedded_lua_AsyncEmbeddedScript.cc()");
 
         // trace(globals);
         // globals.instructions[0](cc);
@@ -54,7 +76,11 @@ class AsyncEmbeddedScript {
     #if macro
     public static function build(dslHaxelib:String, dslFile:String, scriptFile:String, luaOutputDir="lua"):Array<Field> {
         var config = Compiler.getConfiguration();
+        var classFields = [];
+        var supported = false;
+        // Target language build:
         if (["cpp", "js"].contains(Std.string(config.platform))) {
+            supported = true;
             var args = config.args.copy();
 
             var luaScriptFile = luaOutputDir + "/" + scriptFile.withoutExtension().withExtension("lua");
@@ -112,7 +138,7 @@ class AsyncEmbeddedScript {
 
             Prelude.assertProcess("haxe", luaArgs);
 
-            return [{
+            classFields = [{
                 name: "__init",
                 access: [APrivate, AOverride],
                 pos: Context.currentPos(),
@@ -123,21 +149,24 @@ class AsyncEmbeddedScript {
                     }
                 })
             }];
-        } else if (Std.string(config.platform) == "lua") {
-            var k = Kiss.defaultKissState();
-            k.file = scriptFile;
-            var classPath = Context.getPosInfos(Context.currentPos()).file;
-            var loadingDirectory = Path.directory(classPath);
-            var classFields = []; // Kiss.build() will already include Context.getBuildFields()
+        } 
 
-            if (dslHaxelib.length > 0) {
-                dslFile = Path.join([Helpers.libPath(dslHaxelib), dslFile]);
-            }
+        // Both builds need this:
+        var k = Kiss.defaultKissState();
+        k.file = scriptFile;
+        var classPath = Context.getPosInfos(Context.currentPos()).file;
+        var loadingDirectory = Path.directory(classPath);
+        if (dslHaxelib.length > 0) {
+            dslFile = Path.join([Helpers.libPath(dslHaxelib), dslFile]);
+        }
 
-            // This brings in the DSL's functions and global variables.
-            // As a side-effect, it also fills the KissState with the macros and reader macros that make the DSL syntax
-            classFields = classFields.concat(Kiss.build(dslFile, k));
-
+        // This brings in the DSL's functions and global variables.
+        // As a side-effect, it also fills the KissState with the macros and reader macros that make the DSL syntax
+        classFields = classFields.concat(Kiss.build(dslFile, k));
+ 
+        // Lua script build:
+        if (Std.string(config.platform) == "lua") {
+            supported = true;
             scriptFile = Path.join([loadingDirectory, scriptFile]);
 
             Context.registerModuleDependency(Context.getLocalModule(), scriptFile);
@@ -223,9 +252,27 @@ class AsyncEmbeddedScript {
                 })
             });
 
-            return classFields;
-        } else {
+            // The lua script doesn't actually need a body for any function, it just
+            // needs to know the API so it can type-check
+            var classFieldStubs = [for (field in classFields) {
+                switch (field) {
+                    case {
+                        access: access,
+                        kind: FFun(fun)
+                    } if (!field.access.contains(AStatic)):
+                        fun.expr = macro return null;
+                        field;
+                    default:
+                        field;
+                }
+            }];
+
+            return classFieldStubs;
+        }
+        if (!supported) {
             throw 'Unsupported target for kiss-embedded-lua: ${config.platform}';
+        } else {
+            return classFields;
         }
     }
     #end

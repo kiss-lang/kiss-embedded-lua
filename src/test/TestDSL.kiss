@@ -1,2 +1,8 @@
 (function heyo []
     (print "heyo"))
+
+(defMacro macroCallHeyo []
+    `(heyo))
+
+(method heyoMethod []
+    (print "heyoooo"))
