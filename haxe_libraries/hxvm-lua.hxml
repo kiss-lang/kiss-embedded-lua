@@ -1,3 +1,3 @@
-# @install: lix --silent download "gh://github.com/kiss-lang/hxvm-lua#276f4d17602287add60bc56bf43f0748331d346a" into hxvm-lua/0.0.0/github/276f4d17602287add60bc56bf43f0748331d346a
--cp ${HAXE_LIBCACHE}/hxvm-lua/0.0.0/github/276f4d17602287add60bc56bf43f0748331d346a/src
+# @install: lix --silent download "gh://github.com/kiss-lang/hxvm-lua#4459ff55ad3ae8dabcba022a1fea9687626b3e9b" into hxvm-lua/0.0.0/github/4459ff55ad3ae8dabcba022a1fea9687626b3e9b
+-cp ${HAXE_LIBCACHE}/hxvm-lua/0.0.0/github/4459ff55ad3ae8dabcba022a1fea9687626b3e9b/src
 -D hxvm-lua=0.0.0
