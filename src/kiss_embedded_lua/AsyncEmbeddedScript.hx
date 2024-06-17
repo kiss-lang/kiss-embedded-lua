@@ -29,10 +29,14 @@ class AsyncEmbeddedScript {
     public static var instructions = [];
     public static var printCurrentInstruction = true;
     public static var autoCC = true;
+    public function new() {}
     #end
     #if (!macro && !lua)
     private var interp = new Lua();
     private var scriptFile = "";
+
+    public function new() { __init(); }
+    private function __init() {}
 
     public function run(cc:Continuation) {
         var code = sys.io.File.getContent(scriptFile);
@@ -109,8 +113,8 @@ class AsyncEmbeddedScript {
             Prelude.assertProcess("haxe", luaArgs);
 
             return [{
-                name: "new",
-                access: [APublic],
+                name: "__init",
+                access: [APrivate, AOverride],
                 pos: Context.currentPos(),
                 kind: FFun({
                     args: [],
