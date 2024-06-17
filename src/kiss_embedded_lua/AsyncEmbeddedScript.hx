@@ -186,13 +186,13 @@ class AsyncEmbeddedScript {
                         if (!referencesCC) {
                             expr = macro {
                                 $expr;
-                                if (AsyncEmbeddedScript.autoCC) {
+                                if (kiss_embedded_lua.AsyncEmbeddedScript.autoCC) {
                                     cc();
                                 }
                             };
                         }
 
-                        expr = macro { if (AsyncEmbeddedScript.printCurrentInstruction) Prelude.print($v{exprString}); $expr; };
+                        expr = macro { if (kiss_embedded_lua.AsyncEmbeddedScript.printCurrentInstruction) kiss.Prelude.print($v{exprString}); $expr; };
                         expr = expr.expr.withMacroPosOf(nextExp);
                         if (expr != null) {
                             var c = macro function(self, skipping, cc) {
@@ -219,7 +219,7 @@ class AsyncEmbeddedScript {
                 pos: Context.currentPos(),
                 kind: FFun({
                     args: [],
-                    expr: macro {AsyncEmbeddedScript.instructions = $a{commandList};}
+                    expr: macro {kiss_embedded_lua.AsyncEmbeddedScript.instructions = $a{commandList};}
                 })
             });
 
