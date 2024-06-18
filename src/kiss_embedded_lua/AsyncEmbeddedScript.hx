@@ -4,6 +4,7 @@ package kiss_embedded_lua;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Compiler;
+import haxe.macro.Type;
 using haxe.macro.ExprTools;
 
 import kiss.Kiss;
@@ -33,7 +34,7 @@ class Globals {
 }
 #end
 
-class AsyncEmbeddedScript {
+class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
     #if lua
     public static var instructions = [];
     public static var printCurrentInstruction = true;
@@ -76,6 +77,16 @@ class AsyncEmbeddedScript {
     #if macro
     public static function build(dslHaxelib:String, dslFile:String, scriptFile:String, luaOutputDir="lua"):Array<Field> {
         var config = Compiler.getConfiguration();
+        var clazz = Context.getLocalClass().get();
+        var type = clazz.superClass.params[0];
+        var type = switch (type) {
+            case TInst(classRef, []):
+                var ct = classRef.get();
+                TPath({pack: ct.pack, name: ct.name});
+            default:
+                throw "Can't get type name from " + Std.string(type);
+        } 
+
         var classFields = [];
         var supported = false;
         // Target language build:
@@ -224,7 +235,7 @@ class AsyncEmbeddedScript {
                         expr = macro { if (kiss_embedded_lua.AsyncEmbeddedScript.printCurrentInstruction) kiss.Prelude.print($v{exprString}); $expr; };
                         expr = expr.expr.withMacroPosOf(nextExp);
                         if (expr != null) {
-                            var c = macro function(self, skipping, cc) {
+                            var c = macro function(self:$type, skipping, cc) {
                                 $expr;
                             };
                             commandList.push(c.expr.withMacroPosOf(nextExp));
@@ -259,8 +270,13 @@ class AsyncEmbeddedScript {
                     case {
                         access: access,
                         kind: FFun(fun)
-                    } if (!field.access.contains(AStatic)):
-                        fun.expr = macro return null;
+                    } if (!field.access.contains(AStatic) && field.name != "new"):
+                        switch (fun.ret) {
+                            case TPath({pack: [], name: "Void"}):
+                                fun.expr = macro return;
+                            default:
+                                fun.expr = macro return null;
+                        }
                         field;
                     default:
                         field;

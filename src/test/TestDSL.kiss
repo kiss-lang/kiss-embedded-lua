@@ -6,3 +6,6 @@
 
 (method heyoMethod []
     (print "heyoooo"))
+
+(method :Void voidMethod []
+    (print "voidMethod"))
