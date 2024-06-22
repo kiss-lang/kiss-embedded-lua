@@ -30,6 +30,7 @@ typedef Continuation = Void->Void;
 #if lua
 class Globals {
     public static var self:Dynamic;
+    public static var clazz:Dynamic;
     public static var onFinish:Continuation;
 }
 #end
@@ -54,18 +55,18 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
     private var interp = new Lua();
     private var scriptFile = "";
 
-    public function new() { __init(); }
+    // __init() is overridden by the build macro
     private function __init() {}
+    public function new() { __init(); }
 
+    // __setGlobals() is overriden by the build macro
+    private function __setGlobals(interp, onFinish) {}
     public function run(onFinish:Continuation) {
         var code = sys.io.File.getContent(scriptFile);
 
         interp.run(code);
 
-        interp.setGlobalVar("__kiss_embedded_lua_Globals", {
-            self: this,
-            onFinish: onFinish,
-        });
+        __setGlobals(interp, onFinish);
 
         interp.run("__kiss_embedded_lua_AsyncEmbeddedScript.cc()");
 
@@ -157,6 +158,24 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
                     args: [],
                     expr: macro {
                         scriptFile = $v{luaScriptFile};
+                    }
+                })
+            }, {
+                name: "__setGlobals",
+                access: [APublic, AOverride],
+                pos: Context.currentPos(),
+                kind: FFun({
+                    args: [{name: "interp"}, {name: "onFinish"}],
+                    expr: macro {
+                        var classObject = {};
+                        for (field in Type.getClassFields($i{clazz.name})) {
+                            Reflect.setField(classObject, field, Reflect.field($i{clazz.name}, field));
+                        }
+                        interp.setGlobalVar("__kiss_embedded_lua_Globals", {
+                            self: this,
+                            onFinish: onFinish,
+                            clazz: classObject
+                        });
                     }
                 })
             }];
@@ -268,6 +287,12 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
             var classFieldStubs = [for (field in classFields) {
                 switch (field) {
                     case {
+                        name: "new",
+                        kind: FFun(fun)
+                    }:
+                        fun.expr = macro {};
+                        field;
+                    case {
                         access: access,
                         kind: FFun(fun)
                     } if (!field.access.contains(AStatic) && field.name != "new"):
@@ -276,6 +301,19 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
                                 fun.expr = macro return;
                             default:
                                 fun.expr = macro return null;
+                        }
+                        field;
+                    case {
+                        name: name,
+                        access: access,
+                        kind: FFun(fun)
+                    } if (field.access.contains(AStatic) && field.name != "main"):
+                        var args = [for (arg in fun.args) macro $i{arg.name}];
+                        switch (fun.ret) {
+                            case TPath({pack: [], name: "Void"}):
+                                fun.expr = macro Globals.clazz.$name($a{args});
+                            default:
+                                fun.expr = macro return Globals.clazz.$name($a{args});
                         }
                         field;
                     default:
