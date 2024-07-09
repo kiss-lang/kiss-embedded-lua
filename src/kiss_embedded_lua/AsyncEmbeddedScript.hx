@@ -148,7 +148,7 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
                 }
             }
 
-            Prelude.assertProcess("haxe", luaArgs);
+            Prelude.printStr(Prelude.assertProcess("haxe", luaArgs));
 
             classFields = [{
                 name: "__init",
