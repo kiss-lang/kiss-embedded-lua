@@ -118,7 +118,7 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
                     case "-js" | "-cpp":
                         args.shift();
                     case "-cp":
-                        var cp = args.shift();
+                        var cp = Path.normalize(args.shift());
 
                         var add = true;
                         for (lib in libsToRemove) {
