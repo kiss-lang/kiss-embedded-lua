@@ -1,6 +1,9 @@
 package kiss_embedded_lua;
 
 #if macro
+import sys.FileSystem;
+using haxe.io.Path;
+
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Compiler;
@@ -109,81 +112,93 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
             var args = config.args.copy();
 
             var luaScriptFile = luaOutputDir + "/" + scriptFile.withoutExtension().withExtension("lua");
-            var luaArgs = ["-lua", luaScriptFile, "--dce", "full", "-D", "lua-vanilla"];
-            var luaManualArgs = ["-lua", luaScriptFile, "--dce", "full", "-D", "lua-vanilla"];
 
-            var libsToRemove = ["hxnodejs", "hxcpp", "linc_lua", "hxvm-lua"];
-
-            while (args.length > 0) {
-                switch (args.shift()) {
-                    case "-js" | "-cpp":
-                        args.shift();
-                    case "-cp":
-                        var cp = Path.normalize(args.shift());
-
-                        var add = true;
-                        for (lib in libsToRemove) {
-                            if (cp.contains('/${lib}/')) add = false;
-                        }
-                        if (add) {
-                            luaArgs.push("-cp");
-                            luaArgs.push(cp);
-                            luaManualArgs.push("-cp");
-                            luaManualArgs.push(cp);
-                        }
-                    case "-D":
-                        var d = args.shift();
-
-                        var add = true;
-                        for (lib in libsToRemove) {
-                            if (d.contains(lib)) add = false;
-                        }
-                        if (add) {
-                            luaArgs.push("-D");
-                            luaArgs.push(d);
-                            luaManualArgs.push("-D");
-                            luaManualArgs.push(d);
-                        }
-                    case "--main":
-                        var otherMain = args.shift();
-                        var parts = otherMain.split(".");
-                        parts.pop();
-                        parts.push(scriptFile.withoutExtension());
-
-                        luaArgs.push("--main");
-                        luaArgs.push(parts.join("."));
-                        luaManualArgs.push("--main");
-                        luaManualArgs.push(parts.join("."));
-                    case "--macro":
-                        switch (args.shift()) {
-                            case "tink.SyntaxHub.use()":
-                            case mac:
-                                luaArgs.push("--macro");
-                                luaArgs.push(mac);
-                                luaManualArgs.push("--macro");
-                                luaManualArgs.push('"${mac.replace('"', '\\\\"')}"');
-                        }
-                    case "--cmd":
-                        args.shift();
-                    case arg:
-                        luaArgs.push(arg);
-                        luaManualArgs.push(arg);
-                }
-            }
-            
-            if (externClasses != null) {
-                luaArgs.push("--macro");
-                luaArgs.push('kiss_embedded_lua.AsyncEmbeddedScript.initWithExterns([${[for (ec in externClasses) '"' + ec + '"'].join(",")}])');
-                luaManualArgs.push("--macro");
-                luaManualArgs.push('"kiss_embedded_lua.AsyncEmbeddedScript.initWithExterns([${[for (ec in externClasses) '\\\\"' + ec + '\\\\"'].join(",")}])"');
+            var scriptLastUpdated = FileSystem.stat(Context.getPosInfos(Context.currentPos()).file.directory() + "/" + scriptFile).mtime;
+            var luaLastUpdated = if (FileSystem.exists(luaScriptFile)) {
+                FileSystem.stat(luaScriptFile).mtime;
             } else {
-                externClasses = [];
+                new Date(0, 0, 0, 0, 0, 0);
             }
 
-            Prelude.printStr("\n");
-            Prelude.printStr('haxe ${luaManualArgs.join(" ")}');
-            Prelude.printStr("\n");
-            Prelude.printStr(Prelude.assertProcess("haxe", luaArgs));
+            if (luaLastUpdated.getTime() > scriptLastUpdated.getTime()) {
+                Prelude.printStr('\nNot recompiling ${luaScriptFile}\n');
+            } else {
+                var luaArgs = ["-lua", luaScriptFile, "--dce", "full", "-D", "lua-vanilla"];
+                var luaManualArgs = ["-lua", luaScriptFile, "--dce", "full", "-D", "lua-vanilla"];
+
+                var libsToRemove = ["hxnodejs", "hxcpp", "linc_lua", "hxvm-lua"];
+
+                while (args.length > 0) {
+                    switch (args.shift()) {
+                        case "-js" | "-cpp":
+                            args.shift();
+                        case "-cp":
+                            var cp = Path.normalize(args.shift());
+
+                            var add = true;
+                            for (lib in libsToRemove) {
+                                if (cp.contains('/${lib}/')) add = false;
+                            }
+                            if (add) {
+                                luaArgs.push("-cp");
+                                luaArgs.push(cp);
+                                luaManualArgs.push("-cp");
+                                luaManualArgs.push(cp);
+                            }
+                        case "-D":
+                            var d = args.shift();
+
+                            var add = true;
+                            for (lib in libsToRemove) {
+                                if (d.contains(lib)) add = false;
+                            }
+                            if (add) {
+                                luaArgs.push("-D");
+                                luaArgs.push(d);
+                                luaManualArgs.push("-D");
+                                luaManualArgs.push(d);
+                            }
+                        case "--main":
+                            var otherMain = args.shift();
+                            var parts = otherMain.split(".");
+                            parts.pop();
+                            parts.push(scriptFile.withoutExtension());
+
+                            luaArgs.push("--main");
+                            luaArgs.push(parts.join("."));
+                            luaManualArgs.push("--main");
+                            luaManualArgs.push(parts.join("."));
+                        case "--macro":
+                            switch (args.shift()) {
+                                case "tink.SyntaxHub.use()":
+                                case mac:
+                                    luaArgs.push("--macro");
+                                    luaArgs.push(mac);
+                                    luaManualArgs.push("--macro");
+                                    luaManualArgs.push('"${mac.replace('"', '\\\\"')}"');
+                            }
+                        case "--cmd":
+                            args.shift();
+                        case arg:
+                            luaArgs.push(arg);
+                            luaManualArgs.push(arg);
+                    }
+                }
+                
+                if (externClasses != null) {
+                    luaArgs.push("--macro");
+                    luaArgs.push('kiss_embedded_lua.AsyncEmbeddedScript.initWithExterns([${[for (ec in externClasses) '"' + ec + '"'].join(",")}])');
+                    luaManualArgs.push("--macro");
+                    luaManualArgs.push('"kiss_embedded_lua.AsyncEmbeddedScript.initWithExterns([${[for (ec in externClasses) '\\\\"' + ec + '\\\\"'].join(",")}])"');
+                } else {
+                    externClasses = [];
+                }
+
+                Prelude.printStr("\n");
+                Prelude.printStr('haxe ${luaManualArgs.join(" ")}');
+                Prelude.printStr("\n");
+                Prelude.printStr(Prelude.assertProcess("haxe", luaArgs));
+            }
 
             classFields = [{
                 name: "__init",
