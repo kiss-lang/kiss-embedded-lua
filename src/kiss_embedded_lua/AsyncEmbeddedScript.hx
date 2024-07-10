@@ -376,8 +376,7 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
                         name: "new",
                         kind: FFun(fun)
                     }:
-                        fun.expr = macro {};
-                        field;
+                        continue;
                     case {
                         access: access,
                         kind: FFun(fun)
