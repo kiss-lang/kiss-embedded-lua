@@ -222,7 +222,7 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
                             Reflect.setField(classObject, field, Reflect.field($i{clazz.name}, field));
                         }
                         var rootMap = new Map();
-                        var externTree = Package(rootMap);
+                        var externTree = kiss_embedded_lua.AsyncEmbeddedScript.ExternTreeNode.Package(rootMap);
                         for (externClass in $v{externClasses}) {
                             var pkgParts = externClass.split(".");
                             var currentPackageMap = rootMap;
@@ -231,18 +231,18 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
                                 // If we are at the end of the type module
                                 // put the class in the map
                                 if (pkgParts.length == 0) {
-                                    currentPackageMap[currentPartStr] = Clazz(Type.resolveClass(externClass));
+                                    currentPackageMap[currentPartStr] = kiss_embedded_lua.AsyncEmbeddedScript.ExternTreeNode.Clazz(Type.resolveClass(externClass));
                                 } else {
                                     if (currentPackageMap.exists(currentPartStr)) {
                                         currentPackageMap = switch(currentPackageMap[currentPartStr]) {
-                                            case Package(packageMap):
+                                            case kiss_embedded_lua.AsyncEmbeddedScript.ExternTreeNode.Package(packageMap):
                                                 packageMap;
                                             default:
                                                 throw 'bad tree';
                                         }
                                     } else {
                                         var newMap = new Map();
-                                        currentPackageMap[currentPartStr] = Package(newMap);
+                                        currentPackageMap[currentPartStr] = kiss_embedded_lua.AsyncEmbeddedScript.ExternTreeNode.Package(newMap);
                                         currentPackageMap = newMap;
                                     }
                                 }
@@ -250,15 +250,15 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
                             }
                         }
 
-                        function toPackageTreeObject (e:ExternTreeNode):Dynamic {
+                        function toPackageTreeObject (e:kiss_embedded_lua.AsyncEmbeddedScript.ExternTreeNode):Dynamic {
                             return switch (e) {
-                                case Clazz(c):
+                                case kiss_embedded_lua.AsyncEmbeddedScript.ExternTreeNode.Clazz(c):
                                     var obj = {};
                                     for (field in Type.getClassFields(c)) {
                                         Reflect.setField(obj, field, Reflect.field(c, field));
                                     }
                                     obj;
-                                case Package(packageMap):
+                                case kiss_embedded_lua.AsyncEmbeddedScript.ExternTreeNode.Package(packageMap):
                                     var obj = {};
                                     for (key => innerObj in packageMap) {
                                         Reflect.setField(obj, key, toPackageTreeObject(innerObj));
