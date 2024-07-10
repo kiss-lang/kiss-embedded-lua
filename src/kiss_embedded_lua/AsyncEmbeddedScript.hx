@@ -35,6 +35,11 @@ class Globals {
 }
 #end
 
+enum ExternTreeNode {
+    Clazz(c:Class<Dynamic>);
+    Package(p:Map<String,ExternTreeNode>);
+}
+
 class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
     #if lua
     public static var instructions = [];
@@ -76,7 +81,15 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
     #end
 
     #if macro
-    public static function build(dslHaxelib:String, dslFile:String, scriptFile:String, luaOutputDir="lua"):Array<Field> {
+    public static function initWithExterns(externClasses:Array<String>) {
+        Context.onAfterTyping((types) -> {
+            for (clazz in externClasses) {
+                Compiler.exclude(clazz, true);
+            }
+        });
+    }
+
+    public static function build(dslHaxelib:String, dslFile:String, scriptFile:String, luaOutputDir="lua", externClasses:Array<String> = null):Array<Field> {
         var config = Compiler.getConfiguration();
         var clazz = Context.getLocalClass().get();
         var type = clazz.superClass.params[0];
@@ -86,7 +99,7 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
                 TPath({pack: ct.pack, name: ct.name});
             default:
                 throw "Can't get type name from " + Std.string(type);
-        } 
+        }
 
         var classFields = [];
         var supported = false;
@@ -147,6 +160,13 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
                         luaArgs.push(arg);
                 }
             }
+            
+            if (externClasses != null) {
+                luaArgs.push("--macro");
+                luaArgs.push('kiss_embedded_lua.AsyncEmbeddedScript.initWithExterns([${[for (ec in externClasses) '"' + ec + '"'].join(",")}])');
+            } else {
+                externClasses = [];
+            }
 
             Prelude.printStr(Prelude.assertProcess("haxe", luaArgs));
 
@@ -165,12 +185,63 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
                 access: [APublic, AOverride],
                 pos: Context.currentPos(),
                 kind: FFun({
-                    args: [{name: "interp"}, {name: "onFinish"}],
+                    args: [{name: "interp", type: Helpers.parseComplexType("vm.lua.Lua")}, {name: "onFinish"}],
                     expr: macro {
                         var classObject = {};
                         for (field in Type.getClassFields($i{clazz.name})) {
                             Reflect.setField(classObject, field, Reflect.field($i{clazz.name}, field));
                         }
+                        var rootMap = new Map();
+                        var externTree = Package(rootMap);
+                        for (externClass in $v{externClasses}) {
+                            var pkgParts = externClass.split(".");
+                            var currentPackageMap = rootMap;
+                            while (pkgParts.length > 0) {
+                                var currentPartStr = pkgParts.shift();
+                                // If we are at the end of the type module
+                                // put the class in the map
+                                if (pkgParts.length == 0) {
+                                    currentPackageMap[currentPartStr] = Clazz(Type.resolveClass(externClass));
+                                } else {
+                                    if (currentPackageMap.exists(currentPartStr)) {
+                                        currentPackageMap = switch(currentPackageMap[currentPartStr]) {
+                                            case Package(packageMap):
+                                                packageMap;
+                                            default:
+                                                throw 'bad tree';
+                                        }
+                                    } else {
+                                        var newMap = new Map();
+                                        currentPackageMap[currentPartStr] = Package(newMap);
+                                        currentPackageMap = newMap;
+                                    }
+                                }
+
+                            }
+                        }
+
+                        function toPackageTreeObject (e:ExternTreeNode):Dynamic {
+                            return switch (e) {
+                                case Clazz(c):
+                                    var obj = {};
+                                    for (field in Type.getClassFields(c)) {
+                                        Reflect.setField(obj, field, Reflect.field(c, field));
+                                    }
+                                    obj;
+                                case Package(packageMap):
+                                    var obj = {};
+                                    for (key => innerObj in packageMap) {
+                                        Reflect.setField(obj, key, toPackageTreeObject(innerObj));
+                                    }
+                                    obj;
+                            };
+                        }
+                        
+                        for (key => treeNode in rootMap) {
+                            var obj = toPackageTreeObject(treeNode);
+                            interp.setGlobalVar(key, obj);
+                        }
+
                         interp.setGlobalVar("__kiss_embedded_lua_Globals", {
                             self: this,
                             onFinish: onFinish,
