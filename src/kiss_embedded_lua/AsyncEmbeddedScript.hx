@@ -49,9 +49,9 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
     @:keep
     private static function cc() {
         if (instructionPointer >= instructions.length) {
-            Globals.onFinish();
+            kiss_embedded_lua.AsyncEmbeddedScript.Globals.onFinish();
         } else {
-            instructions[instructionPointer++](Globals.self, false, cc);
+            instructions[instructionPointer++](kiss_embedded_lua.AsyncEmbeddedScript.Globals.self, false, cc);
         }
     }
     public function new() {}
@@ -396,9 +396,9 @@ class AsyncEmbeddedScript<T:AsyncEmbeddedScript<T>> {
                         var args = [for (arg in fun.args) macro $i{arg.name}];
                         switch (fun.ret) {
                             case TPath({pack: [], name: "Void"}):
-                                fun.expr = macro Globals.clazz.$name($a{args});
+                                fun.expr = macro kiss_embedded_lua.AsyncEmbeddedScript.Globals.clazz.$name($a{args});
                             default:
-                                fun.expr = macro return Globals.clazz.$name($a{args});
+                                fun.expr = macro return kiss_embedded_lua.AsyncEmbeddedScript.Globals.clazz.$name($a{args});
                         }
                         field;
                     default:
